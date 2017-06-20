@@ -7,6 +7,7 @@ parser = argparse.ArgumentParser(description='These are some simple scripts to i
 parser.add_argument("-s", "--save", help="Save the eeprom to disk. (Default action)", action="store_true")
 parser.add_argument("-l", "--load", help="Restore the eeprom to the oldest available image.", action="store_true")
 parser.add_argument("-t", "--test", help="Test eeprom (and arduino/connections etc).", action="store_true")
+parser.add_argument("-f", "--flash", help="Write eeprom from file FILE", metavar="FILE")
 parser.add_argument("-c", "--clear", help="Clear the flash write all zeros.")
 
 def readROM():
@@ -81,7 +82,7 @@ def write2433(flash):
     assert currentRom == readROM(), "ROM's do not match!"
 
     #stupid check the flash size to 512
-    assert len(flash) == 512, "ROM size is not 512  ({0}".format(len(flash))
+    assert len(flash) == 512, "ROM size is not 512 (was {0})".format(len(flash))
 
     # Transmit the write command + the new flash
     sp.write("w")
@@ -91,7 +92,7 @@ def write2433(flash):
 
     print "Write Result:", repr(result)
 
-    if result == "t":
+    if result == "t\r\n":
         print("Success")
     else:
         print("Failure!")
@@ -107,6 +108,9 @@ def writeOldestToChip():
     flashes.sort()
     flashPath = os.path.join(romDIR, flashes[0])
 
+    writeFileToChip(flashPath)
+
+def writeFileToChip(flashPath):
     print("Attempting to flash with image from " + flashPath)
     oldestFlashData = open(flashPath).read()
     write2433(oldestFlashData)
@@ -156,7 +160,15 @@ if args.test:
     print(binascii.hexlify(readROM()))
     sys.exit(0)
 
-if args.load:
+if args.flash:
+    print("Backing up eeprom")
+    dump2433()
+
+    # Flush the input stream b/c these are independant interations
+    sp.flushInput()
+    print("Flashing file {0}".format(args.flash))
+    writeFileToChip(args.flash)
+elif args.load:
     print("Backing up eeprom")
     dump2433()
 
